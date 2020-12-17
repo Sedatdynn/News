@@ -2,15 +2,34 @@ import requests,time
 from bs4 import BeautifulSoup
 from selenium import webdriver
 
+
+
+
 class TechNews:
     def __init__(self):
         self.user_id = {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36"}
         self.base_url = "https://flipboard.com/section/teknoloji-a0isdrb4bs8bb7n1"
 
+        self.browser = webdriver.Chrome(executable_path=r"C:\Users\ASUS\Desktop\ProjeNews\News\chromedriver.exe")
+        self.browser.get(self.base_url)
+        time.sleep(2)
+        
+        i = 500
+        while i <= 1500:
+            self.browser.execute_script(f"window.scrollTo(0, {i})")
+
+            time.sleep(3)
+            i += 500
+        
+        time.sleep(1)
+
+        self.data = self.browser.page_source
         self.NewsTitle = []
         self.NewsShortContent = []
         self.SourceWebSite = []
         self.NewsAvatar = []
+
+
 
 
     def VeriBelirle(self):
@@ -64,7 +83,7 @@ class SportNews:
         self.baseurl = "https://flipboard.com/section/spor-d7ilibva0mpg02ec"
         self.user_id = {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36"}
         
-        self.browser = webdriver.Chrome(executable_path=r"/home/vitae/chromedriver")
+        self.browser = webdriver.Chrome(executable_path=r"C:\Users\ASUS\Desktop\ProjeNews\News\chromedriver.exe")
         self.browser.get(self.baseurl)
         time.sleep(2)
         
@@ -94,3 +113,11 @@ class SportNews:
 
     def VeriCek(self, url):
         print(url)
+
+
+a = TechNews()
+
+a.VeriBelirle()
+
+b = SportNews()
+b.VeriBelirle()
