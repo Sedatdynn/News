@@ -1,92 +1,94 @@
-import requests,time
+import requests, time
 from bs4 import BeautifulSoup
 from selenium import webdriver
-
-
+from datetime import datetime
+import json
 
 
 class TechNews:
     def __init__(self):
-        self.user_id = {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36"}
+        self.user_id = {
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36"}
         self.base_url = "https://flipboard.com/section/teknoloji-a0isdrb4bs8bb7n1"
-
-        self.browser = webdriver.Chrome(executable_path=r"C:\Users\ASUS\Desktop\ProjeNews\News\chromedriver.exe")
+        self.browser = webdriver.Chrome(executable_path=r"C:\Users\ASUS\Desktop\chromedriver.exe")
         self.browser.get(self.base_url)
         time.sleep(2)
-        
+
         i = 500
-        while i <= 1500:
+        while i <= 500:
             self.browser.execute_script(f"window.scrollTo(0, {i})")
 
             time.sleep(3)
             i += 500
-        
+
         time.sleep(1)
 
         self.data = self.browser.page_source
-        self.NewsTitle = []
-        self.NewsShortContent = []
-        self.SourceWebSite = []
-        self.NewsAvatar = []
+        self.NewsTitle = False
+        self.NewsShortContent = False
+        self.SourceWebSite = False
+        self.NewsAvatar = False
+        self.NewsLink = False
+        self.PostsDate = False
+        self.CurrentDate = False
+        self.current_doc = []
 
+        self.my_json = {
+            "TechNews": []
+        }
 
-
+        self.count = 0
+        with open(r"D:\PycharmProjects\PYTHON\Technews.json", "r", encoding="utf-8") as file:
+            data = json.load(file)
+        for item in data["TechNews"]:
+            try:
+                self.current_doc.append(item["News Link"])
+            except:
+                pass
 
     def VeriBelirle(self):
         print("Veriler belirleniyor.")
         page = requests.get(self.base_url, headers=self.user_id)
-        source = page.text
+        source = page.content
         soup = BeautifulSoup(source, 'html.parser')
+        datas = soup.find("ul", class_="item-list")
+        for data in datas:
+            self.NewsTitle = data.find("h1", class_="post__title article-text--title--large").text
+            self.NewsShortContent = data.find("p", class_="post__excerpt").text
+            links = data.h1.a
+            self.NewsLink = "https://flipboard.com" + links['href']
+            self.SourceWebSite = data.div.address.a.text
+            self.PostsDate = data.div.time.text
+            self.CurrentDate = datetime.now()
 
-        #Href belirle
-        data = soup.find_all("h1",class_="post__title article-text--title--large")
-        for item in data:
-            items = item.find('a')
-            self.VeriCek("https://flipboard.com"+items['href'])
+            my_data = {
+                "Current Date": str(self.CurrentDate),
+                'News Date': self.PostsDate,
+                'News Title': self.NewsTitle,
+                'News Content': self.NewsShortContent,
+                'News Source': self.SourceWebSite,
+                'News Link': self.NewsLink,
+            }
 
-    def VeriCek(self,url):
-        print("Veriler çekiliyor..")
-        try:self.page = requests.get(url, headers=self.user_id)
-        except: pass
+            self.my_json["TechNews"].append(my_data)
+        self.save(self.my_json)
 
-        source = self.page.text
-        soup = BeautifulSoup(source, 'html.parser')
-
-        #HaberBaslik ve Haber KaynakURL
-        data = soup.find_all('h1', class_='post__title article-text--title--large')
-        for item in data:
-            items = item.find('a')
-            self.NewsTitle.append(items.text)
-            self.SourceWebSite.append(items['href'])
-
-        #Haber kısa bilgi
-        data = soup.find_all('p', class_='post__excerpt')
-        for item in data:
-            items = item.find('a')
-            self.NewsShortContent.append(items.text)
-
-        #Haber Avatarı
-        data = soup.find_all('a',class_='post__media post__media--image media-link outbound-link')
-        for item in data:
-            items = item.find('img')
-            self.NewsAvatar.append(items['src'])
+    def save(self, data):
+        with open("Technews.json", "w", encoding="utf-8") as file:
+            json.dump(data, file, indent=2, ensure_ascii=False)
 
 
-        self.VeriGoster()
-    def VeriGoster(self):
-        print(self.NewsTitle)
-        #pass
 
-        
 class SportNews:
     def __init__(self):
         self.baseurl = "https://flipboard.com/section/spor-d7ilibva0mpg02ec"
-        self.user_id = {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36"}
-        
-        self.browser = webdriver.Chrome(executable_path=r"C:\Users\ASUS\Desktop\ProjeNews\News\chromedriver.exe")
+        self.user_id = {
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36"}
+
+        self.browser = webdriver.Chrome(executable_path=r"C:\Users\ASUS\Desktop\chromedriver.exe")
         self.browser.get(self.baseurl)
         time.sleep(2)
-        
+
         i = 500
         while i <= 1500:
             self.browser.execute_script(f"window.scrollTo(0, {i})")
@@ -102,7 +104,7 @@ class SportNews:
         self.NewsAvatar = []
 
     def VeriBelirle(self):
-        
+
         soup = BeautifulSoup(self.data, 'html.parser')
 
         # Href belirle
@@ -115,9 +117,7 @@ class SportNews:
         print(url)
 
 
-a = TechNews()
 
-a.VeriBelirle()
 
-b = SportNews()
+b = TechNews()
 b.VeriBelirle()
