@@ -7,6 +7,8 @@ from dbconnection import connect
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
+
+
 class TechNews:
     def __init__(self):
         self.user_id = {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36"}
@@ -31,7 +33,7 @@ class TechNews:
 
         except: print("hata oldu!")
 
-        while i <= 3500:
+        while i <= 1500:
             self.browser.execute_script(f"window.scrollTo(0, {i})")
 
             time.sleep(2)
@@ -169,8 +171,16 @@ class SportNews:
         self.browser.get(self.base_url)
         time.sleep(2)
 
+        try:
+            self.browser.switch_to.frame(self.browser.find_element_by_id("sp_message_iframe_398445"))
+            time.sleep(1)
+            self.browser.find_element_by_xpath("/html/body/div/div[3]/div[3]/div[2]/button").click()
+            self.browser.switch_to.default_content()
+
+        except: pass
+
         i = 500
-        while i <= 2500:
+        while i <= 1500:
             self.browser.execute_script(f"window.scrollTo(0, {i})")
 
             time.sleep(3)
@@ -178,7 +188,8 @@ class SportNews:
 
         time.sleep(1)
 
-        self.data = self.browser.page_source
+        self.db = connect()
+        self.html_data = self.browser.page_source
         self.browser.quit()
         self.NewsTitle = False
         self.NewsShortContent = False
@@ -188,7 +199,7 @@ class SportNews:
         self.PostsDate = False
         self.CurrentDate = False
         self.current_doc = []
-
+        self.scrapped_datas = []
         self.my_json = {
             "TechNews": []
         }
@@ -203,25 +214,36 @@ class SportNews:
             except:
                 pass
 
-
     def VeriBelirle(self):
-        liste = []
         print("Veriler belirleniyor.")
-        page = requests.get(self.base_url, headers=self.user_id)
-        source = page.content
-        soup = BeautifulSoup(source, 'html.parser')
-        datas = soup.find("ul", class_="item-list")
+        soup = BeautifulSoup(self.html_data, 'html.parser')
+        datas = soup.find("ul",class_ ="item-list item-list--grid")
         for data in datas:
             links = data.h1.a
-            self.NewsLink = "https://flipboard.com" + links['href']
-            if self.NewsLink in self.current_doc:
-                print("Veriler zaten mevcut!")
-            else:
 
+            self.VeriCek("https://flipboard.com" + links['href'])
+
+
+        if len(self.scrapped_datas) >= 1:
+            self.save(self.scrapped_datas)
+
+    def VeriCek(self, url):
+        print("Veriler çekiliyor.")
+        try:
+            page = requests.get(url, headers=self.user_id, verify=False)
+            source = page.content
+            soup = BeautifulSoup(source, 'html.parser')
+
+            data = soup.find("div", class_="post post--card post--article-view")
+            self.SourceLink = data.find('a', class_='button--base button--secondary outbound-link')['href']
+            if self.SourceLink in self.current_doc:
+                print("Veriler json dosyasında  mevcut!")
+            else:
                 self.NewsTitle = data.find("h1", class_="post__title article-text--title--large").text
                 self.NewsShortContent = data.find("p", class_="post__excerpt").text
-                self.SourceWebSite = data.div.address.a.text
-                self.PostsDate = data.div.time.text
+                self.SourceWebSite = data.find('a', class_='post-attribution__author internal-link').text
+                self.SourceLink = data.find('a', class_='button--base button--secondary outbound-link')['href']
+                self.PostsDate = data.find('time', class_='post-attribution__time').text
                 self.CurrentDate = datetime.now()
 
                 my_data = {
@@ -230,15 +252,13 @@ class SportNews:
                     'News Title': self.NewsTitle,
                     'News Content': self.NewsShortContent,
                     'News Source': self.SourceWebSite,
-                    'News Link': self.NewsLink,
+                    'News Link': self.SourceLink,
                 }
 
-                liste.append(my_data)
-            #self.my_json["TechNews"].append(my_data)
-        if len(liste) >= 1:
-            self.save(liste)
-        else:
-            pass
+                self.scrapped_datas.append(my_data)
+
+        except:
+            time.sleep(3); pass
 
     def save(self,data):
         with open("Technews.json", "r", encoding="utf-8") as file:
@@ -248,11 +268,42 @@ class SportNews:
         with open("Technews.json", "w", encoding="utf-8") as file2:
             json.dump(js_file, file2, indent=2, ensure_ascii=False)
 
+        print("Veriler json dosyasına eklendi.")
+        self.save_to_db()
+
+    def save_to_db(self):
+        with open(r'Technews.json', 'r', encoding='utf-8') as file:
+            to_db = json.load(file)
+
+
+        cursor = self.db.cursor()
+        cursor.execute("SELECT * FROM all_news")
+        db_datas = []
+        row = cursor.fetchall()
+        for item in row:
+            db_datas.append(item[1])
+
+        for i in to_db['TechNews']:
+            if i['News Title'] in db_datas:
+                print("bu veri veri tabanında mevcut.")
+            else:
+                insert_data = (
+                    "INSERT INTO all_news(NewsTitle, NewsContent, NewsSource, NewsLink, NewsDate, NewsRegisDate)"
+                    "VALUES (%s, %s, %s, %s, %s, %s)"
+                )
+                js_datas = (f'{i["News Title"]}', i['News Content'], i['News Source'], i['News Link'], i['News Date'], i['Current Date'])
+
+                cursor.execute(insert_data, js_datas)
+
+                self.db.commit()
+
+        self.db.close()
+        print("Veriler veri tabanına aktarıldı.")
 
 
 
-b = TechNews()
-b.VeriBelirle()
+#b = TechNews()
+#b.VeriBelirle()
 
-#a = SportNews()
-#a.VeriBelirle()
+a = SportNews()
+a.VeriBelirle()
